@@ -163,11 +163,27 @@ export default function OddsTable({
           );
           const { pChange, wChange } = getChangeInfo(prevVal, nextVal);
 
+          // Backgrounds
+          const pBg =
+            pChange === "up"
+              ? "bg-emerald-100"
+              : pChange === "down"
+              ? "bg-rose-100"
+              : "bg-gray-100";
+          const wBg =
+            wChange === "up"
+              ? "bg-emerald-100"
+              : wChange === "down"
+              ? "bg-rose-100"
+              : "bg-gray-100";
+
           return (
             <div className="px-3 py-2 text-sm whitespace-nowrap bg-white rounded-md shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-1">
+              <div
+                className={`flex items-center justify-center mb-1 rounded ${pBg} px-2 py-1`}
+              >
                 <span className="font-medium text-gray-700">P:</span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 ml-2">
                   <span className="font-medium">
                     {nextVal.fixedP.toFixed(1)}
                   </span>
@@ -182,9 +198,11 @@ export default function OddsTable({
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between">
+              <div
+                className={`flex items-center justify-center rounded ${wBg} px-2 py-1`}
+              >
                 <span className="font-medium text-gray-700">W:</span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 ml-2">
                   <span className="font-medium">
                     {nextVal.fixedW.toFixed(1)}
                   </span>
@@ -243,7 +261,7 @@ export default function OddsTable({
   return (
     <div
       ref={parentRef}
-      className="w-full overflow-x-auto rounded-lg shadow-md bg-gradient-to-b from-gray-50 to-white border border-gray-200"
+      className="w-full overflow-x-auto overflow-y-hidden rounded-lg shadow-md bg-gradient-to-b from-gray-50 to-white border border-gray-200"
     >
       <table className="border-collapse table-fixed text-sm w-[max-content]">
         <thead className="sticky top-0 z-10 bg-white">
