@@ -1,0 +1,10 @@
+node_modules
+.next
+.env
+
+# Environment variables
+.env
+
+# Next.js
+.next
+
