@@ -10,7 +10,7 @@ async function getInitialOdds(): Promise<OddsEntry[]> {
   if (!host) throw new Error("Unable to read request host header");
   const protocol = host.startsWith("localhost") ? "http" : "https";
   const res = await fetch(`${protocol}://${host}/api/odds`, {
-    cache: "no-store", // always fresh
+    cache: "no-store", 
   });
   if (!res.ok) throw new Error(`Failed to load odds → ${res.status}`);
   return res.json();
