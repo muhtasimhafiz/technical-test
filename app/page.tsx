@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import OddsTable, { OddsEntry } from "@/components/OddsTable";
+import OddsTable from "@/components/OddsTable";
+import type { OddsEntry } from "@/components/OddsTable/types";
 import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +21,29 @@ export default async function OddsPage() {
   const initial = await getInitialOdds();
 
   return (
-    <div className="p-4 min-h-screen w-full overflow-x-auto">
-      <h1 className="text-xl font-semibold mb-4">Live odds comparison</h1>
+    <div className="p-6 min-h-screen w-full overflow-x-auto bg-gradient-to-br from-gray-50 to-white">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-extrabold mb-3 text-orange-700">
+          Live Odds Comparison
+        </h1>
 
-      <Suspense fallback={<p>Loading table…</p>}>
-        <OddsTable initialData={initial} refreshInterval={5000} />
-      </Suspense>
+        <Suspense
+          fallback={
+            <div className="w-full h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin"></div>
+                <p className="text-gray-600 font-medium">
+                  Loading odds data...
+                </p>
+              </div>
+            </div>
+          }
+        >
+          <div className="w-full overflow-hidden">
+            <OddsTable initialData={initial} refreshInterval={5000} />
+          </div>
+        </Suspense>
+      </div>
     </div>
   );
 }
