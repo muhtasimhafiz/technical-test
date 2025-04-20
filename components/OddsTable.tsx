@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ColumnDef,
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
-  SortingState,
+  type SortingState,
   useReactTable,
   getSortedRowModel,
 } from "@tanstack/react-table";
@@ -42,22 +43,20 @@ function buildMatrix(entries: OddsEntry[]) {
 
 function getChangeInfo(prev: OddsEntry | undefined, next: OddsEntry) {
   if (!prev) return { pChange: "none", wChange: "none" };
-
-  const pChange =
-    next.fixedP > prev.fixedP
-      ? "up"
-      : next.fixedP < prev.fixedP
-      ? "down"
-      : "none";
-
-  const wChange =
-    next.fixedW > prev.fixedW
-      ? "up"
-      : next.fixedW < prev.fixedW
-      ? "down"
-      : "none";
-
-  return { pChange, wChange };
+  return {
+    pChange:
+      next.fixedP > prev.fixedP
+        ? "up"
+        : next.fixedP < prev.fixedP
+        ? "down"
+        : "none",
+    wChange:
+      next.fixedW > prev.fixedW
+        ? "up"
+        : next.fixedW < prev.fixedW
+        ? "down"
+        : "none",
+  };
 }
 
 /* ────────────────────────────────────
@@ -65,8 +64,11 @@ function getChangeInfo(prev: OddsEntry | undefined, next: OddsEntry) {
    ──────────────────────────────────── */
 interface Props {
   initialData: OddsEntry[];
-  refreshInterval?: number; // default 5 000 ms
+  refreshInterval?: number;
 }
+
+const RUNNER_COL_WIDTH = 120; // width of sticky column
+const OTHER_COL_WIDTH = 140; // estimate for every other column
 
 export default function OddsTable({
   initialData,
@@ -80,7 +82,7 @@ export default function OddsTable({
     [snapshot]
   );
 
-  /* poll API */
+  /* ─── polling ─── */
   useEffect(() => {
     const id = setInterval(async () => {
       try {
@@ -96,7 +98,7 @@ export default function OddsTable({
     return () => clearInterval(id);
   }, [refreshInterval, snapshot]);
 
-  /* react‑table rows */
+  /* ─── row data ─── */
   type Row = { runner: string; odds: Record<string, OddsEntry> };
   const data = useMemo<Row[]>(
     () => runners.map((r) => ({ runner: r, odds: map[r] })),
@@ -104,8 +106,6 @@ export default function OddsTable({
   );
 
   const [sorting, setSorting] = useState<SortingState>([]);
-
-  // Add state for bookkeeper column sorting
   const [bookkeeperSort, setBookkeeperSort] = useState<{
     id: string;
     desc: boolean;
@@ -113,185 +113,180 @@ export default function OddsTable({
 
   const sortedBookkeepers = useMemo(() => {
     if (!bookkeeperSort) return bookkeepers;
-    return [...bookkeepers].sort((a, b) => {
-      if (bookkeeperSort.desc) {
-        return b.localeCompare(a, undefined, { numeric: true });
-      } else {
-        return a.localeCompare(b, undefined, { numeric: true });
-      }
-    });
+    return [...bookkeepers].sort((a, b) =>
+      bookkeeperSort.desc
+        ? b.localeCompare(a, undefined, { numeric: true })
+        : a.localeCompare(b, undefined, { numeric: true })
+    );
   }, [bookkeepers, bookkeeperSort]);
 
-  const columns = useMemo<ColumnDef<Row, unknown>[]>(() => {
-    const base: ColumnDef<Row, unknown>[] = [
-      {
-        id: "runner",
-        header: () => <div className="font-semibold">Runner</div>,
-        accessorKey: "runner",
-        size: 140,
-        enableSorting: false,
-        cell: ({ getValue }) => (
-          <div className="px-3 py-2 font-medium text-gray-800">
-            {getValue<string>()}
-          </div>
-        ),
-      },
-    ];
+  /* ─── column defs ─── */
+  const runnerColumn: ColumnDef<Row, unknown> = {
+    id: "runner",
+    header: () => <div className="font-semibold text-center">Runner</div>,
+    accessorKey: "runner",
+    size: RUNNER_COL_WIDTH,
+    enableSorting: false,
+    cell: ({ getValue }) => (
+      <div className="px-3 py-2 font-medium text-gray-800 text-center">
+        {getValue<string>()}
+      </div>
+    ),
+  };
 
-    for (const bk of sortedBookkeepers) {
-      base.push({
-        id: bk,
-        header: () => (
-          <div
-            className="w-full truncate font-medium text-gray-700 flex items-center gap-1 select-none"
-            title={bk}
-          >
-            {bk}
-            {bookkeeperSort?.id === bk && (
-              <span className="ml-1">{bookkeeperSort.desc ? "🔽" : "🔼"}</span>
-            )}
-          </div>
-        ),
-        size: 140,
-        accessorFn: (row) => row.odds[bk],
-        enableSorting: false, // handled manually
-        cell: ({ getValue }) => {
-          const nextVal = getValue<OddsEntry>();
-          const prevVal = prevRef.current?.find(
-            (e) =>
-              e.runner === nextVal.runner && e.bookkeeper === nextVal.bookkeeper
-          );
-          const { pChange, wChange } = getChangeInfo(prevVal, nextVal);
+  const otherColumns: ColumnDef<Row, unknown>[] = sortedBookkeepers.map(
+    (bk) => ({
+      id: bk,
+      header: () => (
+        <div
+          className="w-full truncate font-medium text-gray-700 flex items-center justify-center gap-1 select-none"
+          title={bk}
+        >
+          {bk}
+          {bookkeeperSort?.id === bk && (
+            <span>{bookkeeperSort.desc ? "🔽" : "🔼"}</span>
+          )}
+        </div>
+      ),
+      size: OTHER_COL_WIDTH,
+      accessorFn: (row) => row.odds[bk],
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const nextVal = getValue<OddsEntry>();
+        const prevVal = prevRef.current?.find(
+          (e) =>
+            e.runner === nextVal.runner && e.bookkeeper === nextVal.bookkeeper
+        );
+        const { pChange, wChange } = getChangeInfo(prevVal, nextVal);
 
-          // Backgrounds
-          const pBg =
-            pChange === "up"
-              ? "bg-emerald-100"
-              : pChange === "down"
-              ? "bg-rose-100"
-              : "bg-gray-100";
-          const wBg =
-            wChange === "up"
-              ? "bg-emerald-100"
-              : wChange === "down"
-              ? "bg-rose-100"
-              : "bg-gray-100";
+        const pBg =
+          pChange === "up"
+            ? "bg-emerald-100"
+            : pChange === "down"
+            ? "bg-rose-100"
+            : "bg-gray-100";
+        const wBg =
+          wChange === "up"
+            ? "bg-emerald-100"
+            : wChange === "down"
+            ? "bg-rose-100"
+            : "bg-gray-100";
 
-          return (
-            <div className="px-3 py-2 text-sm whitespace-nowrap bg-white rounded-md shadow-sm border border-gray-100">
-              <div
-                className={`flex items-center justify-center mb-1 rounded ${pBg} px-2 py-1`}
-              >
-                <span className="font-medium text-gray-700">P:</span>
-                <div className="flex items-center gap-1 ml-2">
-                  <span className="font-medium">
-                    {nextVal.fixedP.toFixed(1)}
-                  </span>
-                  {pChange === "up" && (
-                    <ArrowUp className="w-3 h-3 text-emerald-500" />
-                  )}
-                  {pChange === "down" && (
-                    <ArrowDown className="w-3 h-3 text-rose-500" />
-                  )}
-                  {pChange === "none" && (
-                    <Minus className="w-3 h-3 text-gray-300" />
-                  )}
-                </div>
-              </div>
-              <div
-                className={`flex items-center justify-center rounded ${wBg} px-2 py-1`}
-              >
-                <span className="font-medium text-gray-700">W:</span>
-                <div className="flex items-center gap-1 ml-2">
-                  <span className="font-medium">
-                    {nextVal.fixedW.toFixed(1)}
-                  </span>
-                  {wChange === "up" && (
-                    <ArrowUp className="w-3 h-3 text-emerald-500" />
-                  )}
-                  {wChange === "down" && (
-                    <ArrowDown className="w-3 h-3 text-rose-500" />
-                  )}
-                  {wChange === "none" && (
-                    <Minus className="w-3 h-3 text-gray-300" />
-                  )}
-                </div>
-              </div>
+        return (
+          <div className="px-3 py-2 text-sm whitespace-nowrap bg-white rounded-md shadow-sm border border-gray-100">
+            <div
+              className={`flex items-center justify-center mb-1 rounded ${pBg} px-2 py-1`}
+            >
+              <span className="font-medium text-gray-700">P:</span>
+              <span className="ml-2 font-medium">
+                {nextVal.fixedP.toFixed(1)}
+              </span>
+              {pChange === "up" && (
+                <ArrowUp className="w-3 h-3 text-emerald-500 ml-1" />
+              )}
+              {pChange === "down" && (
+                <ArrowDown className="w-3 h-3 text-rose-500 ml-1" />
+              )}
+              {pChange === "none" && (
+                <Minus className="w-3 h-3 text-gray-300 ml-1" />
+              )}
             </div>
-          );
-        },
-      });
-    }
-    return base;
-  }, [sortedBookkeepers, bookkeeperSort]);
+            <div
+              className={`flex items-center justify-center rounded ${wBg} px-2 py-1`}
+            >
+              <span className="font-medium text-gray-700">W:</span>
+              <span className="ml-2 font-medium">
+                {nextVal.fixedW.toFixed(1)}
+              </span>
+              {wChange === "up" && (
+                <ArrowUp className="w-3 h-3 text-emerald-500 ml-1" />
+              )}
+              {wChange === "down" && (
+                <ArrowDown className="w-3 h-3 text-rose-500 ml-1" />
+              )}
+              {wChange === "none" && (
+                <Minus className="w-3 h-3 text-gray-300 ml-1" />
+              )}
+            </div>
+          </div>
+        );
+      },
+    })
+  );
 
   const table = useReactTable<Row>({
     data,
-    columns,
+    columns: [runnerColumn, ...otherColumns],
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     state: { sorting },
     onSortingChange: setSorting,
   });
 
-  /* horizontal virtualisation */
+  /* ─── virtualise only the NON‑sticky columns ─── */
   const parentRef = useRef<HTMLDivElement>(null);
   const columnVirtualizer = useVirtualizer({
-    count: table.getFlatHeaders().length,
+    count: otherColumns.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 140,
+    estimateSize: () => OTHER_COL_WIDTH,
     overscan: 5,
     horizontal: true,
   });
 
   const virtualCols = columnVirtualizer.getVirtualItems();
-  const totalSize = columnVirtualizer.getTotalSize();
+  const totalOtherSize = columnVirtualizer.getTotalSize();
 
-  /* ───────────────── render ───────────────── */
+  /* helpers */
   const cellStyle = (start: number, width: number): React.CSSProperties => ({
     width,
-    transform: `translate3d(${start}px,0,0)`,
+    transform: `translate3d(${RUNNER_COL_WIDTH + start}px,0,0)`,
     position: "absolute",
     left: 0,
     contain: "paint",
-    backfaceVisibility: "hidden",
-    willChange: "transform",
   });
 
+  /* ───────────────── render ───────────────── */
   return (
     <div
       ref={parentRef}
-      className="w-full overflow-x-auto overflow-y-hidden rounded-lg shadow-md bg-gradient-to-b from-gray-50 to-white border border-gray-200"
+      className="w-full overflow-x-auto overflow-y-auto max-h-[70vh] rounded-lg shadow-md bg-gradient-to-b from-gray-50 to-white border border-gray-200"
     >
       <table className="border-collapse table-fixed text-sm w-[max-content]">
-        <thead className="sticky top-0 z-10 bg-white">
+        {/* ─────────── HEADER ─────────── */}
+        <thead className="sticky top-0 z-30 bg-white shadow-sm">
+          {" "}
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="relative h-12">
-              {/* spacer */}
-              <th style={{ width: totalSize }} className="p-0 m-0 border-0" />
+              {/* sticky runner header */}
+              <th
+                key="runner-header"
+                className="sticky left-0 z-20 border-b border-gray-200 px-3 py-3 bg-gray-50 text-center"
+                style={{ width: RUNNER_COL_WIDTH }}
+              >
+                {flexRender(runnerColumn.header, hg.headers[0].getContext())}
+              </th>
+
+              {/* spacer to give row its full width */}
+              <th
+                style={{ width: totalOtherSize }}
+                className="p-0 m-0 border-0"
+              />
+
+              {/* virtualised headers */}
               {virtualCols.map((vi) => {
-                const header = hg.headers[vi.index];
-                // Add click handler for bookkeeper columns
-                const isBookkeeper = header.id !== "runner";
+                const header = hg.headers[vi.index + 1]; // +1 skips runner
                 return (
                   <th
                     key={header.id}
                     style={cellStyle(vi.start, header.getSize())}
-                    className={
-                      "border-b border-gray-200 px-3 py-3 bg-gray-50 text-center cursor-pointer select-none"
-                    }
-                    onClick={
-                      isBookkeeper
-                        ? () => {
-                            setBookkeeperSort((prev) => {
-                              if (!prev || prev.id !== header.id)
-                                return { id: header.id, desc: false };
-                              if (!prev.desc)
-                                return { id: header.id, desc: true };
-                              return null; // unsort
-                            });
-                          }
-                        : undefined
+                    className="border-b border-gray-200 px-3 py-3 bg-gray-50 text-center cursor-pointer select-none"
+                    onClick={() =>
+                      setBookkeeperSort((prev) => {
+                        if (!prev || prev.id !== header.id)
+                          return { id: header.id, desc: false };
+                        if (!prev.desc) return { id: header.id, desc: true };
+                        return null;
+                      })
                     }
                   >
                     {flexRender(
@@ -304,29 +299,56 @@ export default function OddsTable({
             </tr>
           ))}
         </thead>
+
+        {/* ─────────── BODY ─────────── */}
         <tbody>
-          {table.getRowModel().rows.map((row, rowIndex) => (
-            <tr
-              key={row.id}
-              className={`relative h-20 ${
-                rowIndex % 2 === 0 ? "bg-gray-50/30" : "bg-white"
-              } hover:bg-gray-100/50 transition-colors duration-150`}
-            >
-              <td style={{ width: totalSize }} className="p-0 m-0 border-0" />
-              {virtualCols.map((vi) => {
-                const cell = row.getVisibleCells()[vi.index];
-                return (
-                  <td
-                    key={cell.id}
-                    style={cellStyle(vi.start, cell.column.getSize())}
-                    className="p-1"
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+          {table.getRowModel().rows.map((row, rowIndex) => {
+            const runnerCell = row.getVisibleCells()[0]!;
+
+            return (
+              <tr
+                key={row.id}
+                className={`relative h-20 ${
+                  rowIndex % 2 === 0 ? "bg-gray-50/30" : "bg-white"
+                } hover:bg-gray-100/50 transition-colors duration-150`}
+              >
+                {/* sticky runner cell */}
+                <td
+                  key="runner-cell"
+                  className="sticky left-0 z-10 bg-inherit p-1 text-center"
+                  style={{ width: RUNNER_COL_WIDTH }}
+                >
+                  {flexRender(
+                    runnerCell.column.columnDef.cell,
+                    runnerCell.getContext()
+                  )}
+                </td>
+
+                {/* spacer */}
+                <td
+                  style={{ width: totalOtherSize }}
+                  className="p-0 m-0 border-0"
+                />
+
+                {/* virtualised cells */}
+                {virtualCols.map((vi) => {
+                  const cell = row.getVisibleCells()[vi.index + 1]; // +1 skips runner
+                  return (
+                    <td
+                      key={cell.id}
+                      style={cellStyle(vi.start, cell.column.getSize())}
+                      className="p-1 text-center"
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

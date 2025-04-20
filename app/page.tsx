@@ -35,7 +35,9 @@ export default async function OddsPage() {
             </div>
           }
         >
-          <OddsTable initialData={initial} refreshInterval={5000} />
+          <div className="w-full overflow-hidden">
+            <OddsTable initialData={initial} refreshInterval={5000} />
+          </div>
         </Suspense>
       </div>
     </div>
