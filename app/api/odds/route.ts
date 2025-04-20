@@ -48,7 +48,7 @@ setInterval(async () => {
     console.error("Failed to update odds:", error);
     // Keep oddsCache unchanged (retain previous data)
   }
-}, 3000);
+}, 30000);
 
 export async function GET() {
   try {

@@ -30,7 +30,7 @@ export default function OddsTable({
   const isMobile = useMediaQuery("(max-width: 640px)");
 
   const RUNNER_COL_WIDTH = isMobile ? 90 : 110;
-  const OTHER_COL_WIDTH = isMobile ? 120 : 140;
+  const OTHER_COL_WIDTH = isMobile ? 110 : 130;
 
   const { runners, bookkeepers, map } = useMemo(
     () => buildMatrix(snapshot),
@@ -76,24 +76,24 @@ export default function OddsTable({
   const runnerColumn: ColumnDef<Row, unknown> = {
     id: "runner",
     header: () => (
-      <div className="font-semibold text-center text-gray-800">Runner</div>
+      <div className="font-semibold text-center text-amber-800">Runner</div>
     ),
     accessorKey: "runner",
     size: RUNNER_COL_WIDTH,
     enableSorting: false,
     cell: ({ getValue }: { getValue: () => unknown }) => (
-      <div className="px-2 py-2 font-medium text-gray-800 text-center">
+      <div className="font-medium text-amber-700 text-center w-full">
         {getValue() as string}
       </div>
     ),
   };
 
   const otherColumns: ColumnDef<Row, unknown>[] = sortedBookkeepers.map(
-    (bk: string) => ({
+    (bk: string, colIndex: number) => ({
       id: bk,
       header: () => (
         <div
-          className="w-full truncate font-medium text-gray-700 flex items-center justify-center gap-1 select-none"
+          className="w-full truncate font-medium text-orange-700 flex items-center justify-center gap-1 select-none"
           title={bk}
         >
           {bk}
@@ -105,13 +105,27 @@ export default function OddsTable({
       size: OTHER_COL_WIDTH,
       accessorFn: (row: Row) => row.odds[bk],
       enableSorting: false,
-      cell: ({ getValue }: { getValue: () => unknown }) => {
+      cell: ({
+        getValue,
+        row: { index: rowIndex },
+      }: {
+        getValue: () => unknown;
+        row: { index: number };
+      }) => {
         const nextVal = getValue() as OddsEntry;
         const prevVal = prevRef.current?.find(
           (e) =>
             e.runner === nextVal.runner && e.bookkeeper === nextVal.bookkeeper
         );
-        return <OddsCell nextVal={nextVal} prevVal={prevVal} />;
+        const isEven = (rowIndex + colIndex) % 2 === 0;
+        return (
+          <OddsCell
+            nextVal={nextVal}
+            prevVal={prevVal}
+            isEven={isEven}
+            useSmallText={isMobile}
+          />
+        );
       },
     })
   );
@@ -148,16 +162,16 @@ export default function OddsTable({
   return (
     <div
       ref={parentRef}
-      className="w-full overflow-x-auto overflow-y-auto max-h-[70vh] rounded-xl shadow-lg bg-white border border-gray-200"
+      className="w-full overflow-x-auto overflow-y-auto max-h-[85vh] rounded-xl shadow-lg bg-white border border-gray-200"
     >
       <table className="border-collapse table-fixed text-sm w-[max-content]">
-        <thead className="sticky top-0 z-30 bg-white shadow-md">
+        <thead className="sticky top-0 z-30 bg-gradient-to-r from-amber-100 to-orange-100 shadow-md">
           {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="relative h-12">
+            <tr key={hg.id} className="relative h-10">
               {/* sticky runner header */}
               <th
                 key="runner-header"
-                className="sticky left-0 z-20 border-b border-gray-200 px-2 py-3 bg-gray-50 text-center"
+                className="sticky left-0 z-20 border-b border-amber-200 px-2 py-2 bg-amber-100 text-center"
                 style={{ width: RUNNER_COL_WIDTH }}
               >
                 {flexRender(runnerColumn.header, hg.headers[0].getContext())}
@@ -176,7 +190,7 @@ export default function OddsTable({
                   <th
                     key={header.id}
                     style={cellStyle(vi.start, header.getSize())}
-                    className="border-b border-gray-200 px-2 py-3 bg-gray-50 text-center cursor-pointer select-none"
+                    className="border-b border-orange-200 px-2 py-2 bg-orange-50 text-center cursor-pointer select-none hover:bg-orange-100 transition-colors"
                     onClick={() =>
                       setBookkeeperSort((prev) => {
                         if (!prev || prev.id !== header.id)
@@ -201,23 +215,26 @@ export default function OddsTable({
           {table.getRowModel().rows.map((row, rowIndex) => {
             const runnerCell = row.getVisibleCells()[0]!;
             const isEven = rowIndex % 2 === 0;
-            const bgColor = isEven ? "bg-gray-50" : "bg-white";
+            const bgColor = isEven ? "bg-amber-50" : "bg-white";
+            const hoverBg = "hover:bg-amber-100";
 
             return (
               <tr
                 key={row.id}
-                className={`relative h-20 ${bgColor} hover:bg-gray-100 transition-colors duration-150`}
+                className={`relative h-12 ${bgColor} ${hoverBg} transition-colors duration-150 border-b border-amber-100`}
               >
-                {/* sticky runner cell with explicit background */}
+                {/* sticky runner cell with matching background */}
                 <td
                   key="runner-cell"
-                  className={`sticky left-0 z-10 p-1 text-center ${bgColor}`}
+                  className={`sticky left-0 z-10 ${bgColor} !bg-opacity-100 p-0`}
                   style={{ width: RUNNER_COL_WIDTH }}
                 >
-                  {flexRender(
-                    runnerCell.column.columnDef.cell,
-                    runnerCell.getContext()
-                  )}
+                  <div className="w-full h-full flex items-center justify-center">
+                    {flexRender(
+                      runnerCell.column.columnDef.cell,
+                      runnerCell.getContext()
+                    )}
+                  </div>
                 </td>
 
                 {/* spacer */}
@@ -227,13 +244,13 @@ export default function OddsTable({
                 />
 
                 {/* virtualised cells */}
-                {virtualCols.map((vi) => {
+                {virtualCols.map((vi, colIndex) => {
                   const cell = row.getVisibleCells()[vi.index + 1]; // +1 skips runner
                   return (
                     <td
                       key={cell.id}
                       style={cellStyle(vi.start, cell.column.getSize())}
-                      className="p-1 text-center"
+                      className="h-full flex items-center justify-center p-0.5 bg-transparent"
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
