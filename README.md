@@ -12,15 +12,12 @@ A real-time odds comparison dashboard built with Next.js 15, Prisma, PostgreSQL,
 3. Set up environment variables:
    - Copy `.env.example` to `.env`
    - Configure your PostgreSQL database URL in `.env`
-4. Initialize the database and seed data:
-   ```
-   npm run postinstall
-   ```
-5. Run the development server:
+
+4. Run the development server:
    ```
    npm run dev
    ```
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Technical Approach
 

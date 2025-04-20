@@ -6,8 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "_seed": "node prisma/seed.js",
-    "_postinstall": "prisma migrate dev --name init && prisma generate && node prisma/seed.js",
+    "seed": "node prisma/seed.js",
+    "postinstall": "prisma migrate dev --name init && prisma generate && node prisma/seed.js",
     "lint": "next lint"
   },
   "dependencies": {
